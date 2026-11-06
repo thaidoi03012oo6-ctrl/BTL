@@ -1,0 +1,50 @@
+package com.recruitment.ai.entity;
+
+import jakarta.persistence.*;
+import java.util.UUID;
+
+@Entity
+@Table(name = "cv_chunks")
+public class CvChunk {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "chunk_id")
+    private UUID chunkId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cv_id", nullable = false)
+    private Cv cv;
+
+    @Column(name = "chunk_index", nullable = false)
+    private Integer chunkIndex;
+
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String content;
+
+    @Column(name = "vector", columnDefinition = "vector(768)", nullable = false)
+    private String vector;
+
+    @Column(name = "meta_data", columnDefinition = "jsonb")
+    private String metaData;
+
+    public CvChunk() {}
+
+    public UUID getChunkId() { return chunkId; }
+    public void setChunkId(UUID chunkId) { this.chunkId = chunkId; }
+
+    public Cv getCv() { return cv; }
+    public void setCv(Cv cv) { this.cv = cv; }
+
+    public Integer getChunkIndex() { return chunkIndex; }
+    public void setChunkIndex(Integer chunkIndex) { this.chunkIndex = chunkIndex; }
+
+    public String getContent() { return content; }
+    public void setContent(String content) { this.content = content; }
+
+    public String getVector() { return vector; }
+    public void setVector(String vector) { this.vector = vector; }
+
+    public String getMetaData() { return metaData; }
+    public void setMetaData(String metaData) { this.metaData = metaData; }
+}

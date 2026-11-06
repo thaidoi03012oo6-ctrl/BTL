@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SmartRecruit AI</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:'Segoe UI',sans-serif;background:#f1f5f9;}
+  .fade-in{animation:fadeIn .3s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .tab-active{border-bottom:3px solid #6366f1;color:#6366f1;font-weight:600;}
+  .badge-pending{background:#fef3c7;color:#92400e;}
+  .badge-accepted{background:#d1fae5;color:#065f46;}
+  .badge-rejected{background:#fee2e2;color:#991b1b;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;display:flex;align-items:center;justify-content:center;}
+  #chatbot-window{display:none;position:fixed;bottom:90px;right:20px;width:370px;height:490px;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.2);z-index:100;flex-direction:column;}
+  #chatbot-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;}
+  .msg-user{align-self:flex-end;background:#6366f1;color:#fff;padding:8px 12px;border-radius:12px 12px 0 12px;max-width:80%;font-size:14px;}
+  .msg-bot{align-self:flex-start;background:#f1f5f9;color:#1e293b;padding:8px 12px;border-radius:12px 12px 12px 0;max-width:80%;font-size:14px;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<nav class="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-100">
+  <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+    <div class="flex items-center gap-3 cursor-pointer" onclick="goHome()">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">S</div>
+      <span class="text-xl font-bold text-gray-800">SmartRecruit <span class="text-indigo-600">AI</span></span>
+    </div>
+    <div class="flex items-center gap-3">
+      <!-- Profile & User Controls in Top Right -->
+      <div id="user-info" class="hidden items-center gap-3">
+        <button onclick="openProfileModal()" class="flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-all cursor-pointer group">
+          <div id="user-avatar-badge" class="w-8 h-8 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-sm">U</div>
+          <div class="text-left">
+            <div id="user-name-display" class="text-xs font-bold text-gray-800 leading-tight">Tài khoản</div>
+            <div id="user-role-display" class="text-[10px] text-indigo-600 font-semibold leading-tight">Ứng viên</div>
+          </div>
+          <span class="text-xs text-indigo-400 group-hover:text-indigo-600 ml-0.5">👤</span>
+        </button>
+        <button onclick="logout()" class="text-sm px-3.5 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 text-gray-600">Đăng xuất</button>
+      </div>
+      <button id="login-btn" onclick="showAuthModal('login')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-5 py-2 rounded-lg font-medium shadow-sm">Đăng Nhập</button>
+    </div>
+  </div>
+</nav>
+
+<!-- LANDING (unauthenticated) -->
+<div id="landing-page">
+  <div class="max-w-4xl mx-auto px-4 py-24 text-center">
+    <div class="inline-block mb-4 px-4 py-1.5 rounded-full bg-indigo-50 text-indigo-600 text-sm font-medium">🤖 Nền tảng tuyển dụng thông minh</div>
+    <h1 class="text-5xl font-bold text-gray-900 mb-4 leading-tight">SmartRecruit <span class="text-indigo-600">AI</span></h1>
+    <p class="text-xl text-gray-500 mb-10 max-w-2xl mx-auto">Kết nối nhà tuyển dụng và ứng viên thông qua công nghệ AI tiên tiến — phân tích CV, so khớp JD, và tư vấn thông minh.</p>
+    <div class="flex justify-center gap-4">
+      <button onclick="showAuthModal('login')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-base px-8 py-3.5 rounded-xl font-semibold shadow-lg">Đăng Nhập Ngay →</button>
+      <button onclick="showAuthModal('register')" class="bg-white border-2 border-indigo-200 hover:border-indigo-400 text-indigo-600 text-base px-8 py-3.5 rounded-xl font-semibold shadow-sm">Đăng Ký Tài Khoản</button>
+    </div>
+    <div class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <div class="text-3xl mb-3">🧠</div>
+        <h3 class="font-semibold text-gray-800 mb-2">AI Phân Tích CV & JD</h3>
+        <p class="text-gray-500 text-sm">Chỉ cần upload file PDF — AI trích xuất thông tin, tạo vector embedding tìm kiếm ngữ nghĩa.</p>
+      </div>
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <div class="text-3xl mb-3">🎯</div>
+        <h3 class="font-semibold text-gray-800 mb-2">Khớp & Đánh Giá Chi Tiết</h3>
+        <p class="text-gray-500 text-sm">Tìm kiếm nhanh Top CV / Top JD với giải thích lý do khớp, kỹ năng còn thiếu và khuyến nghị.</p>
+      </div>
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <div class="text-3xl mb-3">💬</div>
+        <h3 class="font-semibold text-gray-800 mb-2">Trợ Lý AI Tuyển Dụng</h3>
+        <p class="text-gray-500 text-sm">Chatbot AI sẵn sàng giải đáp thắc mắc, tư vấn việc làm và ứng tuyển 24/7.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP (authenticated) -->
+<div id="app-page" class="hidden max-w-7xl mx-auto px-4 py-6">
+
+  <!-- CANDIDATE VIEW -->
+  <div id="view-candidate" class="hidden">
+    <div class="mb-6 flex items-center justify-between border-b border-gray-200 pb-0">
+      <div class="flex items-center gap-4">
+        <button onclick="showCandidateTab('search-jd')" id="ctab-search-jd" class="tab-btn pb-3 px-1 text-sm text-gray-500 hover:text-indigo-600 tab-active">🔍 Tìm Kiếm JD</button>
+        <button onclick="showCandidateTab('quick-jd')" id="ctab-quick-jd" class="tab-btn pb-3 px-1 text-sm text-gray-500 hover:text-indigo-600">⚡ Quick Search</button>
+        <button onclick="showCandidateTab('status')" id="ctab-status" class="tab-btn pb-3 px-1 text-sm text-gray-500 hover:text-indigo-600">📋 Đơn Ứng Tuyển</button>
+      </div>
+      <button onclick="openProfileModal('cv-tab')" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium pb-2 flex items-center gap-1">
+        <span>📄 Quản lý & Upload CV trong Profile →</span>
+      </button>
+    </div>
+
+    <!-- Search JD -->
+    <div id="cpanel-search-jd" class="fade-in">
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Tìm Kiếm Việc Làm (JD)</h2>
+        <div class="flex gap-3 mb-4">
+          <input id="jd-keyword" type="text" placeholder="Nhập từ khóa (vị trí, kỹ năng...)" class="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+          <input id="jd-domain" type="text" placeholder="Lĩnh vực" class="w-36 border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+          <input id="jd-location" type="text" placeholder="Khu vực" class="w-36 border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+          <button onclick="searchJds()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium">Tìm kiếm</button>
+        </div>
+        <div id="jd-search-results" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      </div>
+    </div>
+
+    <!-- Quick JD Search -->
+    <div id="cpanel-quick-jd" class="hidden fade-in">
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <h2 class="text-xl font-bold text-gray-800 mb-2">⚡ Tìm Nhanh Việc Làm Phù Hợp</h2>
+        <p class="text-gray-500 text-sm mb-4">Chọn CV của bạn và nhập số lượng JD muốn xem — AI sẽ xếp hạng theo độ khớp giảm dần, giải thích lý do và chỉ rõ kỹ năng cần trau dồi.</p>
+        <div class="flex gap-3 mb-6">
+          <select id="quick-jd-cv-select" class="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            <option value="">-- Chọn CV của bạn --</option>
+          </select>
+          <input id="quick-jd-topk" type="number" value="5" min="1" max="20" class="w-24 border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" title="Số lượng JD"/>
+          <button onclick="quickSearchJds()" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold">Tìm ngay</button>
+        </div>
+        <div id="quick-jd-loading" class="hidden text-center py-8 text-gray-400"><div class="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>AI đang phân tích và đối soát JD...</div>
+        <div id="quick-jd-results" class="space-y-4"></div>
+      </div>
+    </div>
+
+    <!-- Application Status -->
+    <div id="cpanel-status" class="hidden fade-in">
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-bold text-gray-800">Đơn Ứng Tuyển Của Tôi</h2>
+          <button onclick="loadCandidateApplications()" class="text-sm text-indigo-600 hover:underline">↻ Làm mới</button>
+        </div>
+        <div id="candidate-applications-list" class="space-y-3"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECRUITER VIEW -->
+  <div id="view-recruiter" class="hidden">
+    <div class="mb-6 flex items-center justify-between border-b border-gray-200 pb-0">
+      <div class="flex items-center gap-4">
+        <button onclick="showRecruiterTab('search-cv')" id="rtab-search-cv" class="tab-btn pb-3 px-1 text-sm text-gray-500 hover:text-indigo-600 tab-active">🔍 Tìm Kiếm CV</button>
+        <button onclick="showRecruiterTab('quick-cv')" id="rtab-quick-cv" class="tab-btn pb-3 px-1 text-sm text-gray-500 hover:text-indigo-600">⚡ Quick Search</button>
+        <button onclick="showRecruiterTab('notifications')" id="rtab-notifications" class="tab-btn pb-3 px-1 text-sm text-gray-500 hover:text-indigo-600">🔔 Thông Báo Ứng Tuyển</button>
+      </div>
+      <button onclick="openProfileModal('jd-tab')" class="text-xs text-purple-600 hover:text-purple-800 font-medium pb-2 flex items-center gap-1">
+        <span>📋 Quản lý & Upload JD trong Profile →</span>
+      </button>
+    </div>
+
+    <!-- Search CV -->
+    <div id="rpanel-search-cv" class="fade-in">
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Tìm Kiếm Ứng Viên (CV)</h2>
+        <div class="flex gap-3 mb-4">
+          <input id="cv-keyword" type="text" placeholder="Nhập từ khóa (kỹ năng, tên, lĩnh vực...)" class="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+          <input id="cv-domain" type="text" placeholder="Lĩnh vực" class="w-36 border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+          <button onclick="searchCvs()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium">Tìm kiếm</button>
+        </div>
+        <div id="cv-search-results" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      </div>
+    </div>
+
+    <!-- Quick CV Search -->
+    <div id="rpanel-quick-cv" class="hidden fade-in">
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <h2 class="text-xl font-bold text-gray-800 mb-2">⚡ Tìm Nhanh Ứng Viên Phù Hợp</h2>
+        <p class="text-gray-500 text-sm mb-4">Chọn JD và nhập số lượng CV cần tìm — AI sẽ đánh giá xếp hạng theo độ khớp giảm dần, giải thích lý do khớp và kỹ năng còn thiếu.</p>
+        <div class="flex gap-3 mb-6">
+          <select id="quick-cv-jd-select" class="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            <option value="">-- Chọn JD đã đăng --</option>
+          </select>
+          <input id="quick-cv-topk" type="number" value="5" min="1" max="20" class="w-24 border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" title="Số lượng CV"/>
+          <button onclick="quickSearchCvs()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold">Tìm ngay</button>
+        </div>
+        <div id="quick-cv-loading" class="hidden text-center py-8 text-gray-400"><div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>AI đang phân tích và đối chiếu hồ sơ...</div>
+        <div id="quick-cv-results" class="space-y-4"></div>
+      </div>
+    </div>
+
+    <!-- Notifications -->
+    <div id="rpanel-notifications" class="hidden fade-in">
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-bold text-gray-800">Đơn Ứng Tuyển Nhận Được</h2>
+          <button onclick="loadRecruiterNotifications()" class="text-sm text-indigo-600 hover:underline">↻ Làm mới</button>
+        </div>
+        <div id="recruiter-applications-list" class="space-y-3"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN VIEW -->
+  <div id="view-admin" class="hidden">
+    <div class="mb-6 flex items-center gap-4 border-b border-gray-200 pb-0">
+      <button onclick="showAdminTab('dashboard')" id="atab-dashboard" class="tab-btn pb-3 px-1 text-sm text-gray-500 hover:text-indigo-600 tab-active">📊 Dashboard</button>
+      <button onclick="showAdminTab('cvs')" id="atab-cvs" class="tab-btn pb-3 px-1 text-sm text-gray-500 hover:text-indigo-600">📄 Quản Lý CV</button>
+      <button onclick="showAdminTab('jds')" id="atab-jds" class="tab-btn pb-3 px-1 text-sm text-gray-500 hover:text-indigo-600">📋 Quản Lý JD</button>
+      <button onclick="showAdminTab('users')" id="atab-users" class="tab-btn pb-3 px-1 text-sm text-gray-500 hover:text-indigo-600">👥 Người Dùng</button>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="apanel-dashboard" class="fade-in">
+      <div id="admin-stats-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"></div>
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h3 class="font-bold text-gray-800 text-base flex items-center gap-2"><span>🌱</span> Nạp Thêm Dữ Liệu Mẫu (CV & JD) Vào Database</h3>
+          <p class="text-xs text-gray-500 mt-1">Tự động tạo các ứng viên, nhà tuyển dụng, CV và JD đa ngành nghề (Frontend, AI/ML, Big Data, DevOps) được lưu trực tiếp vào PostgreSQL.</p>
+        </div>
+        <button onclick="seedSampleDataFromAdmin()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-5 py-2.5 rounded-xl shadow-sm transition-colors whitespace-nowrap">Nạp Dữ Liệu Ngay</button>
+      </div>
+    </div>
+
+    <!-- CV Management -->
+    <div id="apanel-cvs" class="hidden fade-in">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-4 border-b flex items-center justify-between">
+          <h2 class="font-bold text-gray-800">Danh Sách Toàn Bộ CV</h2>
+          <button onclick="loadAdminCvs()" class="text-sm text-indigo-600 hover:underline">↻ Làm mới</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-500 text-xs uppercase"><tr>
+              <th class="px-4 py-3 text-left">Tiêu đề</th>
+              <th class="px-4 py-3 text-left">Ứng viên</th>
+              <th class="px-4 py-3 text-left">Lĩnh vực</th>
+              <th class="px-4 py-3 text-left">Khu vực</th>
+              <th class="px-4 py-3 text-left">Kinh nghiệm</th>
+              <th class="px-4 py-3 text-left">Hành động</th>
+            </tr></thead>
+            <tbody id="admin-cvs-table" class="divide-y divide-gray-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- JD Management -->
+    <div id="apanel-jds" class="hidden fade-in">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-4 border-b flex items-center justify-between">
+          <h2 class="font-bold text-gray-800">Danh Sách Toàn Bộ JD</h2>
+          <button onclick="loadAdminJds()" class="text-sm text-indigo-600 hover:underline">↻ Làm mới</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-500 text-xs uppercase"><tr>
+              <th class="px-4 py-3 text-left">Vị trí</th>
+              <th class="px-4 py-3 text-left">Lĩnh vực</th>
+              <th class="px-4 py-3 text-left">Khu vực</th>
+              <th class="px-4 py-3 text-left">Trạng thái</th>
+              <th class="px-4 py-3 text-left">Hành động</th>
+            </tr></thead>
+            <tbody id="admin-jds-table" class="divide-y divide-gray-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Users -->
+    <div id="apanel-users" class="hidden fade-in">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-4 border-b">
+          <h2 class="font-bold text-gray-800">Người Dùng Hệ Thống</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-500 text-xs uppercase"><tr>
+              <th class="px-4 py-3 text-left">Email</th>
+              <th class="px-4 py-3 text-left">Vai trò</th>
+              <th class="px-4 py-3 text-left">Ngày tạo</th>
+            </tr></thead>
+            <tbody id="admin-users-table" class="divide-y divide-gray-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AUTH MODAL (LOGIN & REGISTER) -->
+<div id="auth-modal" class="hidden modal-overlay" onclick="closeAuthModal()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-7 fade-in" onclick="event.stopPropagation()">
+    
+    <!-- Tab Toggle -->
+    <div class="flex border-b border-gray-200 mb-6">
+      <button id="auth-tab-login" onclick="switchAuthTab('login')" class="flex-1 pb-3 text-center font-bold text-sm text-indigo-600 border-b-2 border-indigo-600">Đăng Nhập</button>
+      <button id="auth-tab-register" onclick="switchAuthTab('register')" class="flex-1 pb-3 text-center font-bold text-sm text-gray-400 border-b-2 border-transparent">Đăng Ký</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <div id="auth-form-login">
+      <div class="mb-4">
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Email</label>
+        <input id="login-email" type="email" placeholder="email@example.com" class="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+      </div>
+      <div class="mb-5">
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Mật khẩu</label>
+        <input id="login-password" type="password" placeholder="••••••••" class="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" onkeydown="if(event.key==='Enter')doLogin()"/>
+      </div>
+      <button onclick="doLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-semibold text-sm shadow-md transition-colors">Đăng Nhập</button>
+      
+      <!-- Quick Demo Accounts -->
+      <div class="mt-6 pt-4 border-t border-gray-100">
+        <p class="text-xs text-gray-400 mb-2 font-medium">Hoặc đăng nhập nhanh bằng tài khoản mẫu:</p>
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="quickFillLogin('admin')" class="py-1.5 px-2 bg-gray-50 hover:bg-indigo-50 border border-gray-200 hover:border-indigo-200 rounded-lg text-xs font-medium text-gray-700 hover:text-indigo-600">🛡️ Admin</button>
+          <button onclick="quickFillLogin('recruiter')" class="py-1.5 px-2 bg-gray-50 hover:bg-purple-50 border border-gray-200 hover:border-purple-200 rounded-lg text-xs font-medium text-gray-700 hover:text-purple-600">🏢 Tuyển dụng</button>
+          <button onclick="quickFillLogin('candidate')" class="py-1.5 px-2 bg-gray-50 hover:bg-green-50 border border-gray-200 hover:border-green-200 rounded-lg text-xs font-medium text-gray-700 hover:text-green-600">👤 Ứng viên</button>
+        </div>
+      </div>
+      <p class="mt-5 text-center text-xs text-gray-500">Chưa có tài khoản? <a href="javascript:void(0)" onclick="switchAuthTab('register')" class="text-indigo-600 font-semibold hover:underline">Đăng ký ngay</a></p>
+    </div>
+
+    <!-- REGISTER FORM -->
+    <div id="auth-form-register" class="hidden">
+      <div class="mb-3">
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Bạn là ai?</label>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="flex items-center gap-2 p-2.5 rounded-xl border-2 border-indigo-100 cursor-pointer hover:border-indigo-400">
+            <input type="radio" name="reg-role" value="candidate" checked onchange="toggleRegFields()"/>
+            <span class="text-xs font-semibold text-gray-700">👤 Ứng Viên</span>
+          </label>
+          <label class="flex items-center gap-2 p-2.5 rounded-xl border-2 border-gray-100 cursor-pointer hover:border-purple-400">
+            <input type="radio" name="reg-role" value="recruiter" onchange="toggleRegFields()"/>
+            <span class="text-xs font-semibold text-gray-700">🏢 Nhà Tuyển Dụng</span>
+          </label>
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Email <span class="text-red-500">*</span></label>
+        <input id="reg-email" type="email" placeholder="name@example.com" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+      </div>
+      <div class="mb-3">
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Mật khẩu <span class="text-red-500">*</span></label>
+        <input id="reg-password" type="password" placeholder="Tối thiểu 6 ký tự" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+      </div>
+      
+      <!-- Candidate fields -->
+      <div id="reg-candidate-fields">
+        <div class="mb-3">
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Họ và tên <span class="text-red-500">*</span></label>
+          <input id="reg-fullname" type="text" placeholder="Nguyễn Văn A" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+        </div>
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Số điện thoại</label>
+            <input id="reg-cand-phone" type="text" placeholder="0901234567" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Địa chỉ / Khu vực</label>
+            <input id="reg-cand-address" type="text" placeholder="Hà Nội / HCM" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recruiter fields -->
+      <div id="reg-recruiter-fields" class="hidden">
+        <div class="mb-3">
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Tên công ty <span class="text-red-500">*</span></label>
+          <input id="reg-company" type="text" placeholder="FPT Software, Viettel..." class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"/>
+        </div>
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Người liên hệ</label>
+            <input id="reg-contact" type="text" placeholder="Phụ trách tuyển dụng" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"/>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Số điện thoại</label>
+            <input id="reg-rec-phone" type="text" placeholder="0909999888" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"/>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Địa chỉ công ty</label>
+          <input id="reg-rec-address" type="text" placeholder="Địa chỉ trụ sở" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"/>
+        </div>
+      </div>
+
+      <button onclick="doRegister()" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-semibold text-sm shadow-md transition-colors">Tạo Tài Khoản</button>
+      <p class="mt-4 text-center text-xs text-gray-500">Đã có tài khoản? <a href="javascript:void(0)" onclick="switchAuthTab('login')" class="text-indigo-600 font-semibold hover:underline">Đăng nhập</a></p>
+    </div>
+
+    <button onclick="closeAuthModal()" class="mt-4 w-full text-gray-400 text-xs hover:text-gray-600">Đóng</button>
+  </div>
+</div>
+
+<!-- PROFILE MODAL (HỒ SƠ CÁ NHÂN & QUẢN LÝ CV/JD) -->
+<div id="profile-modal" class="hidden modal-overlay" onclick="closeProfileModal()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto fade-in" onclick="event.stopPropagation()">
+    
+    <!-- Modal Header -->
+    <div class="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-20">
+      <div class="flex items-center gap-3">
+        <div id="prof-avatar" class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-lg flex items-center justify-center shadow-md">U</div>
+        <div>
+          <h2 id="prof-header-name" class="text-lg font-bold text-gray-800">Hồ Sơ Của Tôi</h2>
+          <p id="prof-header-email" class="text-xs text-gray-400">email@example.com</p>
+        </div>
+      </div>
+      <button onclick="closeProfileModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-light">&times;</button>
+    </div>
+
+    <!-- Profile Tabs -->
+    <div class="px-6 border-b border-gray-100 flex gap-6 bg-gray-50/50">
+      <button onclick="switchProfileTab('info')" id="ptab-info" class="py-3 text-sm font-semibold text-indigo-600 border-b-2 border-indigo-600">👤 Thông Tin Cá Nhân</button>
+      <button onclick="switchProfileTab('content')" id="ptab-content" class="py-3 text-sm font-semibold text-gray-500 border-b-2 border-transparent">📁 Quản Lý CV / JD</button>
+    </div>
+
+    <div class="p-6">
+      <!-- TAB 1: USER INFO -->
+      <div id="ppanel-info">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Email (Đăng nhập)</label>
+            <input id="prof-email" type="text" disabled class="w-full bg-gray-100 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-600"/>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1">Vai trò hệ thống</label>
+            <input id="prof-role" type="text" disabled class="w-full bg-gray-100 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-600"/>
+          </div>
+          <div>
+            <label id="prof-label-name" class="block text-xs font-semibold text-gray-700 mb-1">Họ và tên</label>
+            <input id="prof-name" type="text" class="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Số điện thoại</label>
+            <input id="prof-phone" type="text" class="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Địa chỉ / Khu vực</label>
+            <input id="prof-address" type="text" class="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+          <button onclick="saveUserProfile()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-6 py-2.5 rounded-xl shadow-md transition-colors">Lưu Thay Đổi</button>
+        </div>
+      </div>
+
+      <!-- TAB 2: MANAGE CV / JD (UPLOAD, VIEW, EDIT, DELETE) -->
+      <div id="ppanel-content" class="hidden">
+        
+        <!-- Upload Form Box -->
+        <div class="bg-indigo-50/50 border-2 border-dashed border-indigo-200 rounded-2xl p-5 mb-6 text-center">
+          <h3 id="prof-upload-title" class="font-bold text-gray-800 text-sm mb-1">Upload File PDF Mới</h3>
+          <p id="prof-upload-desc" class="text-xs text-gray-500 mb-3">Tải lên file PDF để AI tự động phân tích và lưu vào hồ sơ</p>
+          <label class="inline-flex items-center gap-2 bg-white border border-indigo-300 hover:border-indigo-500 text-indigo-600 px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer shadow-sm">
+            <span>📎 Chọn file PDF</span>
+            <input type="file" accept=".pdf" id="prof-file-input" class="hidden" onchange="previewProfileFile(this)"/>
+          </label>
+          <div id="prof-file-name" class="text-xs text-gray-600 mt-2 font-medium hidden"></div>
+          <div class="mt-3">
+            <button onclick="uploadFromProfile()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-5 py-2 rounded-xl shadow transition-colors">Tải Lên & Phân Tích</button>
+          </div>
+          <div id="prof-upload-status" class="mt-2 text-xs hidden"></div>
+        </div>
+
+        <!-- Items List -->
+        <div class="flex items-center justify-between mb-3">
+          <h3 id="prof-items-title" class="font-bold text-gray-800 text-sm">Danh Sách Đã Tải Lên</h3>
+          <button onclick="refreshProfileItems()" class="text-xs text-indigo-600 hover:underline">↻ Làm mới</button>
+        </div>
+        <div id="prof-items-list" class="space-y-3"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL (CV or JD) -->
+<div id="detail-modal" class="hidden modal-overlay" onclick="closeDetailModal()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto fade-in" onclick="event.stopPropagation()">
+    <div class="p-6 border-b flex items-center justify-between sticky top-0 bg-white z-10">
+      <h3 id="detail-modal-title" class="text-lg font-bold text-gray-800"></h3>
+      <button onclick="closeDetailModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-light">&times;</button>
+    </div>
+    <div id="detail-modal-content" class="p-6"></div>
+    <div id="detail-modal-footer" class="p-4 border-t flex justify-end gap-3"></div>
+  </div>
+</div>
+
+<!-- EDIT MODAL (CV or JD) -->
+<div id="edit-modal" class="hidden modal-overlay" onclick="closeEditModal()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 fade-in" onclick="event.stopPropagation()">
+    <div class="p-6 border-b flex items-center justify-between">
+      <h3 id="edit-modal-title" class="text-lg font-bold text-gray-800"></h3>
+      <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-light">&times;</button>
+    </div>
+    <div id="edit-modal-fields" class="p-6 space-y-3.5"></div>
+    <div class="p-4 border-t flex justify-end gap-3">
+      <button onclick="closeEditModal()" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Hủy</button>
+      <button onclick="saveEdit()" class="px-5 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHATBOT WINDOW -->
+<div id="chatbot-window">
+  <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:16px 16px 0 0;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:36px;height:36px;background:rgba(255,255,255,.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;">🤖</div>
+      <div>
+        <div style="color:#fff;font-weight:600;font-size:14px;">SmartRecruit AI</div>
+        <div style="color:rgba(255,255,255,.8);font-size:11px;">Trợ lý tuyển dụng thông minh</div>
+      </div>
+    </div>
+    <button onclick="toggleChatbot()" style="color:rgba(255,255,255,.8);background:none;border:none;cursor:pointer;font-size:22px;">&times;</button>
+  </div>
+  <div id="chatbot-msgs">
+    <div class="msg-bot">Xin chào! Tôi là trợ lý AI tuyển dụng. Tôi có thể hỗ trợ bạn tìm kiếm ứng viên, gợi ý việc làm, hoặc giải đáp các thắc mắc! 😊</div>
+  </div>
+  <div style="padding:12px;border-top:1px solid #f1f5f9;display:flex;gap:8px;background:#fff;border-radius:0 0 16px 16px;">
+    <input id="chatbot-input" type="text" placeholder="Nhập câu hỏi của bạn..." style="flex:1;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;font-size:13px;outline:none;" onkeydown="if(event.key==='Enter')sendChatbot()"/>
+    <button id="chatbot-send-btn" onclick="sendChatbot()" style="background:#6366f1;color:#fff;border:none;border-radius:10px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600;">Gửi</button>
+  </div>
+</div>
+
+<!-- FLOATING CHATBOT BUTTON (BOTTOM RIGHT) -->
+<button onclick="toggleChatbot()" style="position:fixed;bottom:20px;right:20px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;cursor:pointer;box-shadow:0 4px 20px rgba(99,102,241,.4);z-index:101;font-size:24px;color:#fff;" title="Mở Trợ lý AI">💬</button>
+
+<script>
+const CREDS = {
+  admin: {email:'admin@system.com', password:'admin123'},
+  recruiter: {email:'recruiter@techcorp.com', password:'password123'},
+  candidate: {email:'candidate@example.com', password:'password123'}
+};
+
+let token = null, currentRole = null, currentUserId = null, currentEmail = null, currentDisplayName = null;
+let editTarget = null;
+
+function api(path, opts = {}) {
+  const headers = {'Content-Type': 'application/json', ...(opts.headers || {})};
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  if (opts.isMultipart) delete headers['Content-Type'];
+  return fetch(path, {method: opts.method || 'GET', headers, body: opts.body});
+}
+
+function goHome() {
+  if (!token) {
+    document.getElementById('landing-page').classList.remove('hidden');
+    document.getElementById('app-page').classList.add('hidden');
+    document.getElementById('login-btn').classList.remove('hidden');
+    const userInfo = document.getElementById('user-info');
+    userInfo.classList.add('hidden');
+    userInfo.style.display = 'none';
+  }
+}
+
+// ===== AUTH MODAL (LOGIN & REGISTER) =====
+function showAuthModal(tab = 'login') {
+  document.getElementById('auth-modal').classList.remove('hidden');
+  switchAuthTab(tab);
+}
+function closeAuthModal() {
+  document.getElementById('auth-modal').classList.add('hidden');
+}
+
+function switchAuthTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('auth-form-login').classList.toggle('hidden', !isLogin);
+  document.getElementById('auth-form-register').classList.toggle('hidden', isLogin);
+  
+  const loginTab = document.getElementById('auth-tab-login');
+  const regTab = document.getElementById('auth-tab-register');
+  if (isLogin) {
+    loginTab.className = 'flex-1 pb-3 text-center font-bold text-sm text-indigo-600 border-b-2 border-indigo-600';
+    regTab.className = 'flex-1 pb-3 text-center font-bold text-sm text-gray-400 border-b-2 border-transparent';
+  } else {
+    loginTab.className = 'flex-1 pb-3 text-center font-bold text-sm text-gray-400 border-b-2 border-transparent';
+    regTab.className = 'flex-1 pb-3 text-center font-bold text-sm text-indigo-600 border-b-2 border-indigo-600';
+  }
+}
+
+function quickFillLogin(role) {
+  const cred = CREDS[role];
+  document.getElementById('login-email').value = cred.email;
+  document.getElementById('login-password').value = cred.password;
+  doLogin();
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!email || !password) {alert('Vui lòng nhập email và mật khẩu'); return;}
+
+  try {
+    const res = await fetch('/api/v1/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email, password})
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert('❌ Đăng nhập thất bại: ' + (err.error || 'Email hoặc mật khẩu không chính xác'));
+      return;
+    }
+    const data = await res.json();
+    token = data.token;
+    currentRole = data.role;
+    currentUserId = data.userId;
+    currentEmail = data.email;
+    currentDisplayName = data.displayName || data.fullName || data.companyName || null;
+    closeAuthModal();
+    onLogin();
+  } catch(e) {
+    alert('Lỗi kết nối: ' + e.message);
+  }
+}
+
+function toggleRegFields() {
+  const role = document.querySelector('input[name="reg-role"]:checked').value;
+  const isCand = role === 'candidate';
+  document.getElementById('reg-candidate-fields').classList.toggle('hidden', !isCand);
+  document.getElementById('reg-recruiter-fields').classList.toggle('hidden', isCand);
+}
+
+async function doRegister() {
+  const role = document.querySelector('input[name="reg-role"]:checked').value;
+  const email = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+
+  if (!email || !password) {alert('Vui lòng nhập email và mật khẩu'); return;}
+  if (password.length < 6) {alert('Mật khẩu tối thiểu 6 ký tự'); return;}
+
+  let url, payload;
+  if (role === 'candidate') {
+    const fullName = document.getElementById('reg-fullname').value.trim();
+    if (!fullName) {alert('Vui lòng nhập họ và tên'); return;}
+    url = '/api/v1/auth/register/candidate';
+    payload = {
+      email,
+      password,
+      fullName,
+      phone: document.getElementById('reg-cand-phone').value.trim(),
+      address: document.getElementById('reg-cand-address').value.trim()
+    };
+  } else {
+    const companyName = document.getElementById('reg-company').value.trim();
+    if (!companyName) {alert('Vui lòng nhập tên công ty'); return;}
+    url = '/api/v1/auth/register/recruiter';
+    payload = {
+      email,
+      password,
+      companyName,
+      contactName: document.getElementById('reg-contact').value.trim(),
+      phone: document.getElementById('reg-rec-phone').value.trim(),
+      address: document.getElementById('reg-rec-address').value.trim()
+    };
+  }
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert('❌ Đăng ký thất bại: ' + (err.error || 'Vui lòng kiểm tra lại thông tin'));
+      return;
+    }
+    const data = await res.json();
+    token = data.token;
+    currentRole = data.role;
+    currentUserId = data.userId;
+    currentEmail = data.email;
+    currentDisplayName = data.displayName || (role === 'candidate' ? payload.fullName : payload.companyName) || null;
+    alert('✅ Đăng ký tài khoản thành công!');
+    closeAuthModal();
+    onLogin();
+  } catch(e) {
+    alert('Lỗi kết nối: ' + e.message);
+  }
+}
+
+async function onLogin() {
+  document.getElementById('landing-page').classList.add('hidden');
+  document.getElementById('app-page').classList.remove('hidden');
+  document.getElementById('login-btn').classList.add('hidden');
+  
+  const userInfo = document.getElementById('user-info');
+  userInfo.classList.remove('hidden');
+  userInfo.style.display = 'flex';
+
+  const shortRole = currentRole === 'ROLE_ADMIN' ? 'Admin' : currentRole === 'ROLE_RECRUITMENT' ? 'Tuyển dụng' : 'Ứng viên';
+  const fallbackRoleName = currentRole === 'ROLE_ADMIN' ? 'Quản trị viên' : currentRole === 'ROLE_RECRUITMENT' ? 'Nhà tuyển dụng' : 'Ứng viên';
+  
+  // Ưu tiên hiển thị Họ tên ứng viên hoặc Tên công ty (không hiển thị email)
+  let initialName = currentDisplayName;
+  if (!initialName || initialName === currentEmail) {
+    initialName = fallbackRoleName;
+  }
+  document.getElementById('user-name-display').textContent = initialName;
+  document.getElementById('user-role-display').textContent = shortRole;
+  document.getElementById('user-avatar-badge').textContent = initialName.charAt(0).toUpperCase();
+
+  // Đồng bộ thông tin tên ứng viên hoặc công ty mới nhất từ database
+  try {
+    const res = await api('/api/v1/auth/me');
+    if (res.ok) {
+      const u = await res.json();
+      const realName = u.fullName || u.companyName || u.displayName;
+      if (realName && realName !== currentEmail) {
+        currentDisplayName = realName;
+        document.getElementById('user-name-display').textContent = realName;
+        document.getElementById('user-avatar-badge').textContent = realName.charAt(0).toUpperCase();
+      }
+    }
+  } catch(e) {}
+
+  document.getElementById('view-admin').classList.add('hidden');
+  document.getElementById('view-recruiter').classList.add('hidden');
+  document.getElementById('view-candidate').classList.add('hidden');
+
+  if (currentRole === 'ROLE_ADMIN') {
+    document.getElementById('view-admin').classList.remove('hidden');
+    loadAdminStats();
+  } else if (currentRole === 'ROLE_RECRUITMENT') {
+    document.getElementById('view-recruiter').classList.remove('hidden');
+    loadMyJdsForSelect();
+    searchCvs();
+  } else {
+    document.getElementById('view-candidate').classList.remove('hidden');
+    loadMyCvsForSelect();
+    searchJds();
+  }
+}
+
+function logout() {
+  token = null; currentRole = null; currentUserId = null; currentEmail = null; currentDisplayName = null;
+  document.getElementById('landing-page').classList.remove('hidden');
+  document.getElementById('app-page').classList.add('hidden');
+  document.getElementById('login-btn').classList.remove('hidden');
+  
+  const userInfo = document.getElementById('user-info');
+  userInfo.classList.add('hidden');
+  userInfo.style.display = 'none';
+  document.getElementById('user-name-display').textContent = '';
+  document.getElementById('user-role-display').textContent = '';
+  document.getElementById('user-avatar-badge').textContent = 'U';
+}
+
+// ===== CANDIDATE TABS =====
+function showCandidateTab(tab) {
+  ['search-jd','quick-jd','status'].forEach(t => {
+    document.getElementById('cpanel-' + t).classList.add('hidden');
+    document.getElementById('ctab-' + t).classList.remove('tab-active');
+  });
+  document.getElementById('cpanel-' + tab).classList.remove('hidden');
+  document.getElementById('ctab-' + tab).classList.add('tab-active');
+  if (tab === 'quick-jd') loadMyCvsForSelect();
+  if (tab === 'status') loadCandidateApplications();
+  if (tab === 'search-jd') searchJds();
+}
+
+// ===== RECRUITER TABS =====
+function showRecruiterTab(tab) {
+  ['search-cv','quick-cv','notifications'].forEach(t => {
+    document.getElementById('rpanel-' + t).classList.add('hidden');
+    document.getElementById('rtab-' + t).classList.remove('tab-active');
+  });
+  document.getElementById('rpanel-' + tab).classList.remove('hidden');
+  document.getElementById('rtab-' + tab).classList.add('tab-active');
+  if (tab === 'quick-cv') loadMyJdsForSelect();
+  if (tab === 'notifications') loadRecruiterNotifications();
+  if (tab === 'search-cv') searchCvs();
+}
+
+// ===== ADMIN TABS =====
+function showAdminTab(tab) {
+  ['dashboard','cvs','jds','users'].forEach(t => {
+    document.getElementById('apanel-' + t).classList.add('hidden');
+    document.getElementById('atab-' + t).classList.remove('tab-active');
+  });
+  document.getElementById('apanel-' + tab).classList.remove('hidden');
+  document.getElementById('atab-' + tab).classList.add('tab-active');
+  if (tab === 'cvs') loadAdminCvs();
+  if (tab === 'jds') loadAdminJds();
+  if (tab === 'users') loadAdminUsers();
+}
+
+// ===== SEARCH JD =====
+async function searchJds() {
+  const keyword = document.getElementById('jd-keyword').value;
+  const domain = document.getElementById('jd-domain').value;
+  const khuVuc = document.getElementById('jd-location').value;
+  const params = new URLSearchParams({topK: 10});
+  if (keyword) params.set('keyword', keyword);
+  if (domain) params.set('domain', domain);
+  if (khuVuc) params.set('khuVuc', khuVuc);
+  const r = await api('/api/v1/jds/search?' + params);
+  const results = await r.json();
+  const el = document.getElementById('jd-search-results');
+  if (!results.length) {el.innerHTML='<p class="text-sm text-gray-400 col-span-2">Không tìm thấy kết quả nào.</p>'; return;}
+  el.innerHTML = results.map(j => jdCard(j, true)).join('');
+}
+
+// ===== SEARCH CV =====
+async function searchCvs() {
+  const keyword = document.getElementById('cv-keyword').value;
+  const domain = document.getElementById('cv-domain').value;
+  const params = new URLSearchParams({topK: 10});
+  if (keyword) params.set('keyword', keyword);
+  if (domain) params.set('domain', domain);
+  const r = await api('/api/v1/cvs/search?' + params);
+  const results = await r.json();
+  const el = document.getElementById('cv-search-results');
+  if (!results.length) {el.innerHTML='<p class="text-sm text-gray-400 col-span-2">Không tìm thấy kết quả nào.</p>'; return;}
+  el.innerHTML = results.map(c => cvCard(c)).join('');
+}
+
+// ===== QUICK SEARCH JDs (Candidate) =====
+async function quickSearchJds() {
+  const cvId = document.getElementById('quick-jd-cv-select').value;
+  const topK = document.getElementById('quick-jd-topk').value || 5;
+  if (!cvId) {alert('Vui lòng chọn CV của bạn trước'); return;}
+  document.getElementById('quick-jd-loading').classList.remove('hidden');
+  document.getElementById('quick-jd-results').innerHTML = '';
+  try {
+    const r = await api('/api/v1/matching/cv/' + cvId + '?topK=' + topK);
+    const results = await r.json();
+    document.getElementById('quick-jd-loading').classList.add('hidden');
+    if (!results.length) {
+      document.getElementById('quick-jd-results').innerHTML = '<p class="text-sm text-gray-400">Không tìm thấy kết quả nào.</p>';
+      return;
+    }
+    document.getElementById('quick-jd-results').innerHTML = results.map((j, i) => `
+      <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm fade-in">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <span class="text-xs text-gray-400 font-medium">#${i+1}</span>
+            <h3 class="text-base font-bold text-gray-800">${j.jobTitle || 'JD'}</h3>
+            <p class="text-sm text-gray-500">${j.companyName || ''} ${j.domain ? '· '+j.domain : ''}</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-3 py-1 rounded-full text-sm font-bold ${scoreColor(j.matchScore || Math.round((j.vectorSimilarity || 0) * 100))}">${j.matchScore || Math.round((j.vectorSimilarity || 0) * 100)}%</span>
+            <button onclick="showJdDetail('${j.jdId}')" class="text-indigo-400 hover:text-indigo-600 text-xl" title="Xem chi tiết">👁</button>
+          </div>
+        </div>
+        ${j.detailedReason ? `<div class="bg-blue-50 rounded-xl p-3 mb-2"><p class="text-xs font-semibold text-blue-700 mb-1">🧠 Lý do phù hợp</p><p class="text-sm text-blue-600">${j.detailedReason}</p></div>` : ''}
+        ${j.skillGaps ? `<div class="bg-orange-50 rounded-xl p-3 mb-2"><p class="text-xs font-semibold text-orange-700 mb-1">⚡ Kỹ năng cần trau dồi</p><p class="text-sm text-orange-600">${Array.isArray(j.skillGaps) ? j.skillGaps.join(', ') : j.skillGaps}</p></div>` : ''}
+        ${j.recommendations ? `<div class="bg-green-50 rounded-xl p-3 mb-2"><p class="text-xs font-semibold text-green-700 mb-1">💡 Khuyến nghị</p><p class="text-sm text-green-600">${Array.isArray(j.recommendations) ? j.recommendations.join(', ') : j.recommendations}</p></div>` : ''}
+        <div class="mt-3 flex justify-end">
+          <button onclick="applyToJd('${j.jdId}')" class="bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2 rounded-lg font-medium">Ứng Tuyển Ngay</button>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    document.getElementById('quick-jd-loading').classList.add('hidden');
+    document.getElementById('quick-jd-results').innerHTML = '<p class="text-red-500 text-sm">Lỗi: ' + e.message + '</p>';
+  }
+}
+
+// ===== QUICK SEARCH CVs (Recruiter) =====
+async function quickSearchCvs() {
+  const jdId = document.getElementById('quick-cv-jd-select').value;
+  const topK = document.getElementById('quick-cv-topk').value || 5;
+  if (!jdId) {alert('Vui lòng chọn JD đã đăng'); return;}
+  document.getElementById('quick-cv-loading').classList.remove('hidden');
+  document.getElementById('quick-cv-results').innerHTML = '';
+  try {
+    const r = await api('/api/v1/matching/jd/' + jdId + '?topK=' + topK);
+    const results = await r.json();
+    document.getElementById('quick-cv-loading').classList.add('hidden');
+    if (!results.length) {
+      document.getElementById('quick-cv-results').innerHTML = '<p class="text-sm text-gray-400">Không tìm thấy kết quả nào.</p>';
+      return;
+    }
+    document.getElementById('quick-cv-results').innerHTML = results.map((c, i) => `
+      <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm fade-in">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <span class="text-xs text-gray-400 font-medium">#${i+1}</span>
+            <h3 class="text-base font-bold text-gray-800">${c.cvTitle || 'CV'}</h3>
+            <p class="text-sm text-gray-500">${c.candidateName || ''} ${c.domain ? '· '+c.domain : ''}</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-3 py-1 rounded-full text-sm font-bold ${scoreColor(c.matchScore)}">${c.matchScore || 0}%</span>
+            <button onclick="showCvDetail('${c.cvId}')" class="text-indigo-400 hover:text-indigo-600 text-xl" title="Xem chi tiết">👁</button>
+          </div>
+        </div>
+        ${c.detailedReason ? `<div class="bg-blue-50 rounded-xl p-3 mb-2"><p class="text-xs font-semibold text-blue-700 mb-1">🧠 Lý do phù hợp</p><p class="text-sm text-blue-600">${c.detailedReason}</p></div>` : ''}
+        ${c.skillGaps ? `<div class="bg-orange-50 rounded-xl p-3 mb-2"><p class="text-xs font-semibold text-orange-700 mb-1">⚡ Kỹ năng còn thiếu</p><p class="text-sm text-orange-600">${Array.isArray(c.skillGaps) ? c.skillGaps.join(', ') : c.skillGaps}</p></div>` : ''}
+        ${c.recommendations ? `<div class="bg-green-50 rounded-xl p-3"><p class="text-xs font-semibold text-green-700 mb-1">💡 Khuyến nghị</p><p class="text-sm text-green-600">${Array.isArray(c.recommendations) ? c.recommendations.join(', ') : c.recommendations}</p></div>` : ''}
+      </div>`).join('');
+  } catch(e) {
+    document.getElementById('quick-cv-loading').classList.add('hidden');
+    document.getElementById('quick-cv-results').innerHTML = '<p class="text-red-500 text-sm">Lỗi: ' + e.message + '</p>';
+  }
+}
+
+// ===== APPLY =====
+async function applyToJd(jdId) {
+  let cvId = document.getElementById('quick-jd-cv-select')?.value;
+  if (!cvId) {
+    const r = await api('/api/v1/cvs/my-cvs');
+    if (r.ok) {
+      const cvs = await r.json();
+      if (cvs && cvs.length > 0) cvId = cvs[0].cvId;
+    }
+  }
+  if (!cvId) {alert('Vui lòng upload CV của bạn trong mục Profile trước khi ứng tuyển!'); return;}
+  if (!confirm('Bạn muốn ứng tuyển vào vị trí này?')) return;
+  try {
+    const r = await api('/api/v1/apply', {method:'POST', body: JSON.stringify({cvId, jdId})});
+    const d = await r.json();
+    if (r.ok) alert('✅ ' + d.message);
+    else alert('❌ ' + (d.error || 'Lỗi'));
+  } catch(e) {alert('❌ Lỗi: ' + e.message);}
+}
+
+// ===== CANDIDATE APPLICATIONS =====
+async function loadCandidateApplications() {
+  const r = await api('/api/v1/apply/candidate');
+  if (!r.ok) {document.getElementById('candidate-applications-list').innerHTML='<p class="text-sm text-gray-400">Không thể tải dữ liệu.</p>'; return;}
+  const data = await r.json();
+  const el = document.getElementById('candidate-applications-list');
+  if (!data.length) {el.innerHTML='<p class="text-sm text-gray-400">Chưa có đơn ứng tuyển nào.</p>'; return;}
+  el.innerHTML = data.map(a => `
+    <div class="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+      <div>
+        <p class="font-semibold text-gray-800 text-sm">${a.jobTitle}</p>
+        <p class="text-xs text-gray-500">${a.companyName} · ${a.cvTitle}</p>
+        <p class="text-xs text-gray-400">${new Date(a.applyTime).toLocaleDateString('vi-VN')}</p>
+      </div>
+      <span class="px-3 py-1 rounded-full text-xs font-semibold badge-${a.status.toLowerCase()}">${statusLabel(a.status)}</span>
+    </div>`).join('');
+}
+
+// ===== RECRUITER NOTIFICATIONS =====
+async function loadRecruiterNotifications() {
+  const r = await api('/api/v1/apply/recruiter');
+  if (!r.ok) {document.getElementById('recruiter-applications-list').innerHTML='<p class="text-sm text-gray-400">Không thể tải dữ liệu.</p>'; return;}
+  const data = await r.json();
+  const el = document.getElementById('recruiter-applications-list');
+  if (!data.length) {el.innerHTML='<p class="text-sm text-gray-400">Chưa có đơn ứng tuyển nào.</p>'; return;}
+  el.innerHTML = data.map(a => `
+    <div class="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+      <div>
+        <p class="font-semibold text-gray-800 text-sm">${a.candidateName} → ${a.jobTitle}</p>
+        <p class="text-xs text-gray-500">CV: ${a.cvTitle}</p>
+        <p class="text-xs text-gray-400">${new Date(a.applyTime).toLocaleDateString('vi-VN')}</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="px-2 py-1 rounded-full text-xs font-semibold badge-${a.status.toLowerCase()}">${statusLabel(a.status)}</span>
+        ${a.status === 'PENDING' ? `
+          <button onclick="updateApplyStatus('${a.applyId}','ACCEPTED')" class="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1.5 rounded-lg font-medium">✓ Chấp nhận</button>
+          <button onclick="updateApplyStatus('${a.applyId}','REJECTED')" class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg font-medium">✗ Từ chối</button>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+async function updateApplyStatus(applyId, status) {
+  const label = status === 'ACCEPTED' ? 'Chấp nhận' : 'Từ chối';
+  if (!confirm('Bạn chắc chắn muốn ' + label.toLowerCase() + ' đơn ứng tuyển này?')) return;
+  try {
+    const r = await api('/api/v1/apply/' + applyId + '/status', {method:'PUT', body: JSON.stringify({status})});
+    const d = await r.json();
+    if (r.ok) {loadRecruiterNotifications(); alert('✅ ' + d.message);}
+    else alert('❌ ' + (d.error || 'Lỗi'));
+  } catch(e) {alert('❌ ' + e.message);}
+}
+
+// ===== PROFILE MODAL & MANAGEMENT =====
+async function openProfileModal(initialTab = 'info') {
+  if (!token) return;
+  document.getElementById('profile-modal').classList.remove('hidden');
+  
+  // Load current user profile from backend
+  try {
+    const r = await api('/api/v1/auth/me');
+    if (r.ok) {
+      const u = await r.json();
+      const realName = u.fullName || u.companyName || u.displayName || u.email;
+      currentDisplayName = realName;
+      document.getElementById('prof-header-name').textContent = realName;
+      document.getElementById('prof-header-email').textContent = u.email;
+      document.getElementById('prof-avatar').textContent = realName.charAt(0).toUpperCase();
+      document.getElementById('user-name-display').textContent = realName;
+      document.getElementById('user-avatar-badge').textContent = realName.charAt(0).toUpperCase();
+
+      document.getElementById('prof-email').value = u.email || '';
+      document.getElementById('prof-role').value = u.role === 'ROLE_ADMIN' ? 'Quản trị viên' : u.role === 'ROLE_RECRUITMENT' ? 'Nhà tuyển dụng' : 'Ứng viên';
+      
+      const isCand = u.role === 'ROLE_CANDIDATE';
+      document.getElementById('prof-label-name').textContent = isCand ? 'Họ và tên' : 'Tên công ty';
+      document.getElementById('prof-name').value = isCand ? (u.fullName || '') : (u.companyName || '');
+      document.getElementById('prof-phone').value = u.phone || '';
+      document.getElementById('prof-address').value = u.address || '';
+    }
+  } catch(e) {}
+
+  // Setup tab UI according to role
+  const isCandidate = currentRole === 'ROLE_CANDIDATE';
+  document.getElementById('ptab-content').textContent = isCandidate ? '📄 Quản Lý CV Của Tôi' : '📋 Quản Lý JD Đã Đăng';
+  document.getElementById('prof-upload-title').textContent = isCandidate ? 'Tải Lên CV Mới (PDF)' : 'Tải Lên JD Tuyển Dụng Mới (PDF)';
+  document.getElementById('prof-upload-desc').textContent = isCandidate ? 'AI sẽ tự động đọc, phân tích kỹ năng và lưu vào hồ sơ' : 'AI sẽ tự động bóc tách yêu cầu công việc và lưu JD';
+  document.getElementById('prof-items-title').textContent = isCandidate ? 'Danh Sách CV Của Bạn' : 'Danh Sách JD Đã Đăng';
+
+  switchProfileTab(initialTab === 'cv-tab' || initialTab === 'jd-tab' ? 'content' : 'info');
+}
+
+function closeProfileModal() {
+  document.getElementById('profile-modal').classList.add('hidden');
+}
+
+function switchProfileTab(tab) {
+  const isInfo = tab === 'info';
+  document.getElementById('ppanel-info').classList.toggle('hidden', !isInfo);
+  document.getElementById('ppanel-content').classList.toggle('hidden', isInfo);
+
+  document.getElementById('ptab-info').className = isInfo 
+    ? 'py-3 text-sm font-semibold text-indigo-600 border-b-2 border-indigo-600'
+    : 'py-3 text-sm font-semibold text-gray-500 border-b-2 border-transparent';
+  document.getElementById('ptab-content').className = !isInfo
+    ? 'py-3 text-sm font-semibold text-indigo-600 border-b-2 border-indigo-600'
+    : 'py-3 text-sm font-semibold text-gray-500 border-b-2 border-transparent';
+
+  if (!isInfo) {
+    refreshProfileItems();
+  }
+}
+
+async function saveUserProfile() {
+  const isCand = currentRole === 'ROLE_CANDIDATE';
+  const body = {
+    phone: document.getElementById('prof-phone').value.trim(),
+    address: document.getElementById('prof-address').value.trim()
+  };
+  if (isCand) {
+    body.fullName = document.getElementById('prof-name').value.trim();
+  } else {
+    body.companyName = document.getElementById('prof-name').value.trim();
+  }
+
+  try {
+    const r = await api('/api/v1/auth/me', {method: 'PUT', body: JSON.stringify(body)});
+    if (r.ok) {
+      alert('✅ Cập nhật thông tin thành công!');
+      const u = await r.json();
+      const newName = u.fullName || u.companyName || u.displayName || u.email;
+      currentDisplayName = newName;
+      document.getElementById('prof-header-name').textContent = newName;
+      document.getElementById('user-name-display').textContent = newName;
+      document.getElementById('user-avatar-badge').textContent = newName.charAt(0).toUpperCase();
+    } else {
+      alert('❌ Cập nhật thất bại');
+    }
+  } catch(e) {
+    alert('❌ Lỗi: ' + e.message);
+  }
+}
+
+function previewProfileFile(input) {
+  const el = document.getElementById('prof-file-name');
+  if (input.files[0]) {
+    el.textContent = '📄 ' + input.files[0].name;
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+  }
+}
+
+async function uploadFromProfile() {
+  const input = document.getElementById('prof-file-input');
+  if (!input.files[0]) {alert('Vui lòng chọn file PDF'); return;}
+
+  const isCand = currentRole === 'ROLE_CANDIDATE';
+  const url = isCand ? '/api/v1/cvs/upload' : '/api/v1/jds/upload';
+  const form = new FormData();
+  form.append('file', input.files[0]);
+
+  const st = document.getElementById('prof-upload-status');
+  st.innerHTML = '<span class="text-indigo-600 font-medium">⏳ Đang tải lên và phân tích AI...</span>';
+  st.classList.remove('hidden');
+
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: {'Authorization': 'Bearer ' + token},
+      body: form
+    });
+    if (r.ok) {
+      st.innerHTML = '<span class="text-green-600 font-semibold">✅ Upload và phân tích thành công!</span>';
+      input.value = '';
+      document.getElementById('prof-file-name').classList.add('hidden');
+      refreshProfileItems();
+      loadMyCvsForSelect();
+      loadMyJdsForSelect();
+    } else {
+      const e = await r.text();
+      st.innerHTML = '<span class="text-red-600">❌ ' + e + '</span>';
+    }
+  } catch(e) {
+    st.innerHTML = '<span class="text-red-600">❌ Lỗi: ' + e.message + '</span>';
+  }
+}
+
+async function refreshProfileItems() {
+  const el = document.getElementById('prof-items-list');
+  el.innerHTML = '<p class="text-xs text-gray-400">Đang tải...</p>';
+
+  if (currentRole === 'ROLE_CANDIDATE') {
+    const r = await api('/api/v1/cvs/my-cvs');
+    if (!r.ok) return;
+    const cvs = await r.json();
+    if (!cvs.length) {
+      el.innerHTML = '<p class="text-xs text-gray-400 italic">Chưa có CV nào. Hãy tải lên CV đầu tiên ở trên!</p>';
+      return;
+    }
+    el.innerHTML = cvs.map(c => `
+      <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex items-center justify-between">
+        <div>
+          <h4 class="font-bold text-gray-800 text-sm">${c.cvTitle || 'CV'}</h4>
+          <p class="text-xs text-gray-500 mt-0.5">${c.domain || 'Lĩnh vực'} · ${c.khuVuc || 'Toàn quốc'} · ${c.experience || 'Kinh nghiệm'}</p>
+          <span class="text-[10px] text-gray-400">${c.createdAt ? new Date(c.createdAt).toLocaleDateString('vi-VN') : ''}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="showCvDetail('${c.cvId}')" class="p-1.5 text-indigo-500 hover:bg-indigo-50 rounded-lg text-lg" title="Xem full">👁</button>
+          <button onclick="openEditCvModal('${c.cvId}','${esc(c.cvTitle)}','${esc(c.domain)}','${esc(c.experience)}','${esc(c.khuVuc)}')" class="p-1.5 text-yellow-600 hover:bg-yellow-50 rounded-lg text-sm font-bold" title="Sửa">✏️</button>
+          <button onclick="deleteProfileCv('${c.cvId}')" class="p-1.5 text-red-500 hover:bg-red-50 rounded-lg text-sm font-bold" title="Xóa">🗑️</button>
+        </div>
+      </div>`).join('');
+  } else {
+    const r = await api('/api/v1/jds/my-jds');
+    if (!r.ok) return;
+    const jds = await r.json();
+    if (!jds.length) {
+      el.innerHTML = '<p class="text-xs text-gray-400 italic">Chưa có JD nào. Hãy tải lên JD tuyển dụng ở trên!</p>';
+      return;
+    }
+    el.innerHTML = jds.map(j => `
+      <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex items-center justify-between">
+        <div>
+          <h4 class="font-bold text-gray-800 text-sm">${j.jobTitle || 'JD'}</h4>
+          <p class="text-xs text-gray-500 mt-0.5">${j.domain || 'Lĩnh vực'} · ${j.khuVuc || 'Địa điểm'} · <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold ${j.status==='OPEN'?'bg-green-100 text-green-700':'bg-gray-100 text-gray-600'}">${j.status||'OPEN'}</span></p>
+          <span class="text-[10px] text-gray-400">${j.createdAt ? new Date(j.createdAt).toLocaleDateString('vi-VN') : ''}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="showJdDetail('${j.jdId}')" class="p-1.5 text-purple-500 hover:bg-purple-50 rounded-lg text-lg" title="Xem full">👁</button>
+          <button onclick="openEditJdModal('${j.jdId}','${esc(j.jobTitle)}','${esc(j.domain)}','${esc(j.experience)}','${esc(j.khuVuc)}','${esc(j.status)}')" class="p-1.5 text-yellow-600 hover:bg-yellow-50 rounded-lg text-sm font-bold" title="Sửa">✏️</button>
+          <button onclick="deleteProfileJd('${j.jdId}')" class="p-1.5 text-red-500 hover:bg-red-50 rounded-lg text-sm font-bold" title="Xóa">🗑️</button>
+        </div>
+      </div>`).join('');
+  }
+}
+
+async function deleteProfileCv(cvId) {
+  if (!confirm('Bạn chắc chắn muốn xóa CV này? Hành động không thể hoàn tác!')) return;
+  try {
+    const r = await api('/api/v1/cvs/' + cvId, {method: 'DELETE'});
+    if (r.ok) {
+      alert('✅ Xóa CV thành công!');
+      refreshProfileItems();
+      loadMyCvsForSelect();
+    } else {
+      alert('❌ Xóa thất bại');
+    }
+  } catch(e) {
+    alert('❌ Lỗi: ' + e.message);
+  }
+}
+
+async function deleteProfileJd(jdId) {
+  if (!confirm('Bạn chắc chắn muốn xóa JD này? Hành động không thể hoàn tác!')) return;
+  try {
+    const r = await api('/api/v1/jds/' + jdId, {method: 'DELETE'});
+    if (r.ok) {
+      alert('✅ Xóa JD thành công!');
+      refreshProfileItems();
+      loadMyJdsForSelect();
+    } else {
+      alert('❌ Xóa thất bại');
+    }
+  } catch(e) {
+    alert('❌ Lỗi: ' + e.message);
+  }
+}
+
+async function loadMyCvsForSelect() {
+  const r = await api('/api/v1/cvs/my-cvs');
+  if (!r.ok) return;
+  const cvs = await r.json();
+  const sel = document.getElementById('quick-jd-cv-select');
+  if (sel) {
+    sel.innerHTML = '<option value="">-- Chọn CV của bạn --</option>' + cvs.map(c => `<option value="${c.cvId}">${c.cvTitle || 'CV'}</option>`).join('');
+  }
+}
+
+async function loadMyJdsForSelect() {
+  const r = await api('/api/v1/jds/my-jds');
+  if (!r.ok) return;
+  const jds = await r.json();
+  const sel = document.getElementById('quick-cv-jd-select');
+  if (sel) {
+    sel.innerHTML = '<option value="">-- Chọn JD đã đăng --</option>' + jds.map(j => `<option value="${j.jdId}">${j.jobTitle || 'JD'}</option>`).join('');
+  }
+}
+
+// ===== ADMIN CRUD =====
+async function loadAdminStats() {
+  const r = await api('/api/v1/admin/stats');
+  if (!r.ok) return;
+  const d = await r.json();
+  const el = document.getElementById('admin-stats-grid');
+  const items = [
+    {label:'Tổng người dùng', value: d.totalUsers, icon:'👥'},
+    {label:'Ứng viên', value: d.totalCandidates, icon:'👤'},
+    {label:'Nhà tuyển dụng', value: d.totalRecruiters, icon:'🏢'},
+    {label:'CV', value: d.totalCvs, icon:'📄'},
+    {label:'JD', value: d.totalJds, icon:'📋'},
+    {label:'Khớp AI', value: d.totalMatches, icon:'🎯'},
+    {label:'Đơn ứng tuyển', value: d.totalApplications, icon:'📮'},
+  ];
+  el.innerHTML = items.map(i => `
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+      <div class="text-2xl mb-2">${i.icon}</div>
+      <div class="text-2xl font-bold text-gray-800">${i.value ?? 0}</div>
+      <div class="text-sm text-gray-500">${i.label}</div>
+    </div>`).join('');
+}
+
+async function seedSampleDataFromAdmin() {
+  if (!confirm('Bạn muốn nạp thêm các CV và JD mẫu đa ngành nghề vào PostgreSQL Database?')) return;
+  try {
+    const r = await api('/api/v1/admin/seed-samples', {method: 'POST'});
+    const d = await r.json();
+    alert('✅ ' + (d.message || 'Thành công!'));
+    loadAdminStats();
+  } catch(e) {
+    alert('❌ Lỗi: ' + e.message);
+  }
+}
+
+async function loadAdminCvs() {
+  const r = await api('/api/v1/admin/cvs');
+  if (!r.ok) return;
+  const cvs = await r.json();
+  const el = document.getElementById('admin-cvs-table');
+  el.innerHTML = cvs.map(c => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-4 py-3 font-medium text-gray-800">${c.cvTitle || '-'}</td>
+      <td class="px-4 py-3 text-gray-600">${c.candidate?.fullName || '-'}</td>
+      <td class="px-4 py-3 text-gray-500">${c.domain || '-'}</td>
+      <td class="px-4 py-3 text-gray-500">${c.khuVuc || '-'}</td>
+      <td class="px-4 py-3 text-gray-500">${c.experience || '-'}</td>
+      <td class="px-4 py-3">
+        <div class="flex gap-2">
+          <button onclick="showCvDetail('${c.cvId}')" class="text-indigo-500 hover:text-indigo-700 text-lg" title="Xem">👁</button>
+          <button onclick="openEditCvModal('${c.cvId}','${esc(c.cvTitle)}','${esc(c.domain)}','${esc(c.experience)}','${esc(c.khuVuc)}')" class="text-yellow-500 hover:text-yellow-700 text-sm font-medium">✏️</button>
+          <button onclick="adminDeleteCv('${c.cvId}')" class="text-red-500 hover:text-red-700 text-sm font-medium">🗑️</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+async function loadAdminJds() {
+  const r = await api('/api/v1/admin/jds');
+  if (!r.ok) return;
+  const jds = await r.json();
+  const el = document.getElementById('admin-jds-table');
+  el.innerHTML = jds.map(j => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-4 py-3 font-medium text-gray-800">${j.jobTitle || '-'}</td>
+      <td class="px-4 py-3 text-gray-500">${j.domain || '-'}</td>
+      <td class="px-4 py-3 text-gray-500">${j.khuVuc || '-'}</td>
+      <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-medium ${j.status==='OPEN'?'bg-green-100 text-green-700':'bg-gray-100 text-gray-500'}">${j.status || '-'}</span></td>
+      <td class="px-4 py-3">
+        <div class="flex gap-2">
+          <button onclick="showJdDetail('${j.jdId}')" class="text-indigo-500 hover:text-indigo-700 text-lg" title="Xem">👁</button>
+          <button onclick="openEditJdModal('${j.jdId}','${esc(j.jobTitle)}','${esc(j.domain)}','${esc(j.experience)}','${esc(j.khuVuc)}','${esc(j.status)}')" class="text-yellow-500 hover:text-yellow-700 text-sm">✏️</button>
+          <button onclick="adminDeleteJd('${j.jdId}')" class="text-red-500 hover:text-red-700 text-sm">🗑️</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+async function loadAdminUsers() {
+  const r = await api('/api/v1/admin/users');
+  if (!r.ok) return;
+  const users = await r.json();
+  const el = document.getElementById('admin-users-table');
+  el.innerHTML = users.map(u => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-4 py-3 text-gray-700">${u.email}</td>
+      <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600">${u.role}</span></td>
+      <td class="px-4 py-3 text-gray-400 text-xs">${u.createdAt ? new Date(u.createdAt).toLocaleDateString('vi-VN') : '-'}</td>
+    </tr>`).join('');
+}
+
+async function adminDeleteCv(cvId) {
+  if (!confirm('Xóa CV này? Hành động không thể hoàn tác!')) return;
+  const r = await api('/api/v1/cvs/' + cvId, {method:'DELETE'});
+  if (r.ok) {loadAdminCvs(); alert('✅ Đã xóa CV');}
+  else alert('❌ Không thể xóa');
+}
+
+async function adminDeleteJd(jdId) {
+  if (!confirm('Xóa JD này? Hành động không thể hoàn tác!')) return;
+  const r = await api('/api/v1/jds/' + jdId, {method:'DELETE'});
+  if (r.ok) {loadAdminJds(); alert('✅ Đã xóa JD');}
+  else alert('❌ Không thể xóa');
+}
+
+function openEditCvModal(cvId, title, domain, exp, khuVuc) {
+  editTarget = {type:'cv', id: cvId};
+  document.getElementById('edit-modal-title').textContent = 'Chỉnh sửa CV';
+  document.getElementById('edit-modal-fields').innerHTML = `
+    <div><label class="text-xs font-semibold text-gray-600 mb-1 block">Tiêu đề CV</label><input id="ef-title" type="text" value="${title||''}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/></div>
+    <div><label class="text-xs font-semibold text-gray-600 mb-1 block">Lĩnh vực</label><input id="ef-domain" type="text" value="${domain||''}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/></div>
+    <div><label class="text-xs font-semibold text-gray-600 mb-1 block">Kinh nghiệm</label><input id="ef-exp" type="text" value="${exp||''}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/></div>
+    <div><label class="text-xs font-semibold text-gray-600 mb-1 block">Khu vực</label><input id="ef-khu" type="text" value="${khuVuc||''}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/></div>`;
+  document.getElementById('edit-modal').classList.remove('hidden');
+}
+
+function openEditJdModal(jdId, title, domain, exp, khuVuc, status) {
+  editTarget = {type:'jd', id: jdId};
+  document.getElementById('edit-modal-title').textContent = 'Chỉnh sửa JD';
+  document.getElementById('edit-modal-fields').innerHTML = `
+    <div><label class="text-xs font-semibold text-gray-600 mb-1 block">Tiêu đề JD</label><input id="ef-title" type="text" value="${title||''}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/></div>
+    <div><label class="text-xs font-semibold text-gray-600 mb-1 block">Lĩnh vực</label><input id="ef-domain" type="text" value="${domain||''}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/></div>
+    <div><label class="text-xs font-semibold text-gray-600 mb-1 block">Kinh nghiệm</label><input id="ef-exp" type="text" value="${exp||''}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/></div>
+    <div><label class="text-xs font-semibold text-gray-600 mb-1 block">Khu vực</label><input id="ef-khu" type="text" value="${khuVuc||''}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/></div>
+    <div><label class="text-xs font-semibold text-gray-600 mb-1 block">Trạng thái</label><select id="ef-status" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"><option value="OPEN" ${status==='OPEN'?'selected':''}>OPEN</option><option value="CLOSED" ${status==='CLOSED'?'selected':''}>CLOSED</option></select></div>`;
+  document.getElementById('edit-modal').classList.remove('hidden');
+}
+
+async function saveEdit() {
+  if (!editTarget) return;
+  const body = {};
+  if (editTarget.type === 'cv') {
+    body.cvTitle = document.getElementById('ef-title').value;
+    body.domain = document.getElementById('ef-domain').value;
+    body.experience = document.getElementById('ef-exp').value;
+    body.khuVuc = document.getElementById('ef-khu').value;
+    const r = await api('/api/v1/cvs/' + editTarget.id, {method:'PUT', body: JSON.stringify(body)});
+    if (r.ok) {
+      closeEditModal(); 
+      alert('✅ Cập nhật thành công');
+      if (currentRole === 'ROLE_ADMIN') loadAdminCvs();
+      refreshProfileItems();
+    } else {
+      alert('❌ Lỗi cập nhật');
+    }
+  } else {
+    body.jobTitle = document.getElementById('ef-title').value;
+    body.domain = document.getElementById('ef-domain').value;
+    body.experience = document.getElementById('ef-exp').value;
+    body.khuVuc = document.getElementById('ef-khu').value;
+    body.status = document.getElementById('ef-status').value;
+    const r = await api('/api/v1/jds/' + editTarget.id, {method:'PUT', body: JSON.stringify(body)});
+    if (r.ok) {
+      closeEditModal(); 
+      alert('✅ Cập nhật thành công');
+      if (currentRole === 'ROLE_ADMIN') loadAdminJds();
+      refreshProfileItems();
+    } else {
+      alert('❌ Lỗi cập nhật');
+    }
+  }
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.add('hidden');
+  editTarget = null;
+}
+
+// ===== DETAIL MODALS =====
+async function showCvDetail(cvId) {
+  const r = await api('/api/v1/cvs/' + cvId);
+  if (!r.ok) {alert('Không thể tải CV'); return;}
+  const c = await r.json();
+  document.getElementById('detail-modal-title').textContent = '📄 ' + (c.cvTitle || 'CV Chi Tiết');
+  document.getElementById('detail-modal-content').innerHTML = `
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bg-gray-50 rounded-xl p-4"><p class="text-xs text-gray-400 mb-1">Lĩnh vực</p><p class="font-medium text-gray-800">${c.domain || '-'}</p></div>
+        <div class="bg-gray-50 rounded-xl p-4"><p class="text-xs text-gray-400 mb-1">Khu vực</p><p class="font-medium text-gray-800">${c.khuVuc || '-'}</p></div>
+        <div class="bg-gray-50 rounded-xl p-4"><p class="text-xs text-gray-400 mb-1">Kinh nghiệm</p><p class="font-medium text-gray-800">${c.experience || '-'}</p></div>
+        <div class="bg-gray-50 rounded-xl p-4"><p class="text-xs text-gray-400 mb-1">Ngày tạo</p><p class="font-medium text-gray-800">${c.createdAt ? new Date(c.createdAt).toLocaleDateString('vi-VN') : '-'}</p></div>
+      </div>
+      ${c.rawText ? `<div class="bg-gray-50 rounded-xl p-4 max-h-64 overflow-y-auto"><p class="text-xs text-gray-400 mb-2">Nội dung CV</p><p class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">${c.rawText}</p></div>` : ''}
+    </div>`;
+  document.getElementById('detail-modal-footer').innerHTML = '';
+  document.getElementById('detail-modal').classList.remove('hidden');
+}
+
+async function showJdDetail(jdId) {
+  const r = await api('/api/v1/jds/' + jdId);
+  if (!r.ok) {alert('Không thể tải JD'); return;}
+  const j = await r.json();
+  document.getElementById('detail-modal-title').textContent = '📋 ' + (j.jobTitle || 'JD Chi Tiết');
+  document.getElementById('detail-modal-content').innerHTML = `
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bg-gray-50 rounded-xl p-4"><p class="text-xs text-gray-400 mb-1">Lĩnh vực</p><p class="font-medium text-gray-800">${j.domain || '-'}</p></div>
+        <div class="bg-gray-50 rounded-xl p-4"><p class="text-xs text-gray-400 mb-1">Khu vực</p><p class="font-medium text-gray-800">${j.khuVuc || '-'}</p></div>
+        <div class="bg-gray-50 rounded-xl p-4"><p class="text-xs text-gray-400 mb-1">Kinh nghiệm</p><p class="font-medium text-gray-800">${j.experience || '-'}</p></div>
+        <div class="bg-gray-50 rounded-xl p-4"><p class="text-xs text-gray-400 mb-1">Trạng thái</p><p class="font-medium ${j.status==='OPEN'?'text-green-600':'text-gray-500'}">${j.status || '-'}</p></div>
+        ${j.minSalary||j.maxSalary ? `<div class="bg-gray-50 rounded-xl p-4 col-span-2"><p class="text-xs text-gray-400 mb-1">Mức lương</p><p class="font-medium text-gray-800">${j.minSalary||'?'} - ${j.maxSalary||'?'} triệu</p></div>` : ''}
+      </div>
+      ${j.description ? `<div class="bg-gray-50 rounded-xl p-4 max-h-64 overflow-y-auto"><p class="text-xs text-gray-400 mb-2">Mô tả công việc</p><p class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">${j.description}</p></div>` : ''}
+    </div>`;
+  document.getElementById('detail-modal-footer').innerHTML = currentRole === 'ROLE_CANDIDATE'
+    ? `<button onclick="applyToJd('${jdId}')" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl text-sm font-medium">Ứng Tuyển Ngay</button>` : '';
+  document.getElementById('detail-modal').classList.remove('hidden');
+}
+
+function closeDetailModal() {
+  document.getElementById('detail-modal').classList.add('hidden');
+}
+
+// ===== HELPERS =====
+function jdCard(j, showApply) {
+  return `<div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+    <div class="flex items-start justify-between">
+      <div>
+        <h3 class="font-bold text-gray-800 text-sm">${j.jobTitle || 'JD'}</h3>
+        <p class="text-xs text-gray-500 mt-0.5">${j.companyName||''} ${j.domain?'· '+j.domain:''} ${j.khuVuc?'· '+j.khuVuc:''}</p>
+      </div>
+      <button onclick="showJdDetail('${j.jdId}')" class="text-indigo-400 hover:text-indigo-600 text-xl ml-2" title="Xem chi tiết">👁</button>
+    </div>
+    <p class="text-xs text-gray-500 mt-2 line-clamp-2">${j.description ? j.description.substring(0,120)+'...' : ''}</p>
+    <div class="flex items-center justify-between mt-3">
+      <span class="text-xs text-gray-400">${j.experience||''} ${j.khuVuc?'· '+j.khuVuc:''}</span>
+      ${showApply ? `<button onclick="applyToJd('${j.jdId}')" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3.5 py-1.5 rounded-lg font-medium">Ứng Tuyển</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function cvCard(c) {
+  return `<div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+    <div class="flex items-start justify-between">
+      <div>
+        <h3 class="font-bold text-gray-800 text-sm">${c.cvTitle || 'CV'}</h3>
+        <p class="text-xs text-gray-500 mt-0.5">${c.candidateName||''} ${c.domain?'· '+c.domain:''}</p>
+      </div>
+      <button onclick="showCvDetail('${c.cvId}')" class="text-indigo-400 hover:text-indigo-600 text-xl ml-2" title="Xem chi tiết">👁</button>
+    </div>
+    <p class="text-xs text-gray-500 mt-2">${c.experience||''} ${c.khuVuc?'· '+c.khuVuc:''}</p>
+  </div>`;
+}
+
+function scoreColor(score) {
+  if (score >= 70) return 'bg-green-100 text-green-700';
+  if (score >= 50) return 'bg-yellow-100 text-yellow-700';
+  return 'bg-red-100 text-red-700';
+}
+
+function statusLabel(s) {
+  return {PENDING:'⏳ Chờ duyệt', ACCEPTED:'✅ Được nhận', REJECTED:'❌ Từ chối'}[s] || s;
+}
+
+function esc(s) {
+  return (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+// ===== CHATBOT WITH STATUS RING SPINNER =====
+let chatbotOpen = false;
+function toggleChatbot() {
+  chatbotOpen = !chatbotOpen;
+  document.getElementById('chatbot-window').style.display = chatbotOpen ? 'flex' : 'none';
+  if (chatbotOpen) document.getElementById('chatbot-input').focus();
+}
+
+async function sendChatbot() {
+  const input = document.getElementById('chatbot-input');
+  const btn = document.getElementById('chatbot-send-btn');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  input.value = '';
+  input.disabled = true;
+  btn.disabled = true;
+
+  const msgs = document.getElementById('chatbot-msgs');
+  msgs.innerHTML += `<div class="msg-user">${msg}</div>`;
+  
+  // Hiển thị vòng trạng thái (spinner ring) khi chatbot đang suy nghĩ
+  const spinnerId = 'thinking-' + Date.now();
+  msgs.innerHTML += `
+    <div id="${spinnerId}" class="msg-bot flex items-center gap-2">
+      <div class="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+      <span class="text-xs text-gray-500 font-medium">AI đang suy nghĩ...</span>
+    </div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+
+  try {
+    const r = await fetch('/api/v1/chatbot/ask', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', ...(token ? {'Authorization':'Bearer '+token} : {})},
+      body: JSON.stringify({question: msg})
+    });
+    const d = await r.json();
+    const spinEl = document.getElementById(spinnerId);
+    if (spinEl) spinEl.remove();
+    msgs.innerHTML += `<div class="msg-bot">${d.answer || d.error || 'Lỗi không xác định'}</div>`;
+  } catch(e) {
+    const spinEl = document.getElementById(spinnerId);
+    if (spinEl) spinEl.remove();
+    msgs.innerHTML += `<div class="msg-bot" style="color:#ef4444">❌ Không thể kết nối chatbot</div>`;
+  } finally {
+    input.disabled = false;
+    btn.disabled = false;
+    input.focus();
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+}
+</script>
+</body>
+</html>
